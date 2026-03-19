@@ -1,0 +1,15 @@
+{
+  "name": "webmcp-on-demand-edge",
+  "version": "1.0.0",
+  "description": "Fastly Compute edge worker — WebMCP on Demand",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "build": "js-compute-runtime src/index.js bin/main.wasm",
+    "deploy": "fastly compute deploy",
+    "serve": "fastly compute serve"
+  },
+  "devDependencies": {
+    "@fastly/js-compute": "^3.35.0"
+  }
+}

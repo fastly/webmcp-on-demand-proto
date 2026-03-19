@@ -1,0 +1,12 @@
+{
+  "name": "skyroute-origin",
+  "version": "1.0.0",
+  "description": "SkyRoute — demo travel website (origin server for WebMCP on Demand POC)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.0"
+  }
+}
