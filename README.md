@@ -8,17 +8,8 @@ A demonstration of **WebMCP on Demand**: a Fastly Compute service that automatic
 
 ## Architecture
 
-```
-┌──────────────┐       ┌──────────────────────┐       ┌──────────────────┐
-│              │       │  Fastly Compute Edge  │       │   SkyRoute       │
-│   Browser /  │ ───── │                       │ ───── │   Origin Server  │
-│   AI Agent   │       │  • Detects <form>s    │       │                  │
-│              │       │  • Classifies forms   │       │  Plain HTML —    │
-│              │       │  • Injects WebMCP     │       │  no WebMCP at    │
-│              │       │    attributes         │       │  all             │
-│              │       │  • Injects badge UI   │       │                  │
-└──────────────┘       └──────────────────────┘       └──────────────────┘
-```
+<img width="2596" height="986" alt="Architecture diagram" src="https://github.com/user-attachments/assets/3a2bca6a-3a9a-45fa-abe4-41a31f2f6eed" />
+
 
 ## Project Structure
 
