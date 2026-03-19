@@ -8,7 +8,7 @@ A demonstration of **WebMCP on Demand**: a Fastly Compute service that automatic
 
 ## Architecture
 
-<img width="3120" height="1198" alt="CleanShot 2026-03-19 at 16 50 03" src="https://github.com/user-attachments/assets/87dfc64f-8c6b-4ecd-8699-c57d1aa5cc9d" />
+<img width="3128" height="1160" alt="CleanShot 2026-03-19 at 16 52 15" src="https://github.com/user-attachments/assets/3df4daed-c78e-4c34-ae3f-8885bfe70b95" />
 
 
 ## Project Structure
