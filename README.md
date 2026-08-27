@@ -1,6 +1,6 @@
 # WebMCP on Demand — Proof of Concept
 
-A demonstration of **WebMCP on Demand**: a Fastly Compute service that automatically makes any website AI-agent-ready by injecting [WebMCP declarative attributes](https://developer.chrome.com/blog/webmcp-epp) into HTML forms at the edge.
+A demonstration of **WebMCP on Demand**: a Fastly Compute service that automatically makes any website AI-agent-ready by injecting [WebMCP declarative attributes](https://developer.chrome.com/docs/ai/webmcp/declarative-api) into HTML forms at the edge.
 
 **The demo story:** a site owner puts their plain website behind Fastly, toggles on "WebMCP on Demand," and their site instantly becomes agent-ready. Zero code changes on the origin.
 
@@ -61,12 +61,14 @@ The edge worker is now proxying to the origin. Open the Fastly local URL (typica
 
 ### 4. Test with Chrome's WebMCP support
 
-If using **Chrome 146+** with the WebMCP flag enabled:
+WebMCP is in a public origin trial from Chrome 149 through 156. For local testing, no token is needed:
 
-1. Open `chrome://flags` and enable "Web Model Context Protocol"
+1. Open `chrome://flags/#enable-webmcp-testing`, set it to **Enabled**, and relaunch Chrome
 2. Navigate to the Fastly local URL
-3. Open the Chrome Model Context Tool Inspector (DevTools → More Tools → Model Context)
+3. Install the [Model Context Tool Inspector extension](https://chromewebstore.google.com/detail/model-context-tool-inspec/gbpdfapgefenggkahomfgkhfehlcenpd) to see registered tools, call them manually, and verify the synthesized JSON Schema
 4. You should see the injected tools listed and usable by AI agents
+
+For a deployed demo, the page needs an [origin trial token](https://developer.chrome.com/origintrials/#/register_trial/4163014905550602241). The edge service injects it via the `Origin-Trial` header (see `edge/src/index.js`), so the origin still needs zero changes.
 
 ## What Gets Injected
 
@@ -110,3 +112,4 @@ The form classifier uses two layers:
 - Form classification happens eagerly when the `<form>` element is encountered (before child elements stream through), using form-level signals
 - Non-HTML responses (CSS, JS, images) pass through untouched
 - `Content-Length` headers are removed since the body size changes after injection
+- WebMCP only activates in origin-isolated documents: if the origin sends `Origin-Agent-Cluster: ?0`, Chrome disables the API regardless of injected attributes. The API is also gated by the `tools` Permissions Policy (defaults to `self`, so top-level pages are fine). A production version of this service should verify the origin's headers don't disable either.

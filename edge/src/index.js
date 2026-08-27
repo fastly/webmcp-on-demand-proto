@@ -12,7 +12,6 @@ import { classifyForm, generateToolName } from "./classifier.js";
 import {
   generateToolDescription,
   generateParamDescription,
-  maybeParamTitle,
 } from "./descriptions.js";
 import { generateBadgeHTML } from "./badge.js";
 
@@ -122,11 +121,6 @@ async function handleRequest(event) {
 
     const description = generateParamDescription(field);
     el.setAttribute("toolparamdescription", description);
-
-    const title = maybeParamTitle(name);
-    if (title) {
-      el.setAttribute("toolparamtitle", title);
-    }
   }
 
   // ── Inject badge before </body> ──────────────────────────────────────
@@ -142,6 +136,14 @@ async function handleRequest(event) {
   // Clone headers and remove content-length since the body size has changed
   const headers = new Headers(originResponse.headers);
   headers.delete("content-length");
+
+  // Inject the WebMCP origin trial token so Chrome 149+ enables the API.
+  // Token is per-origin; register at:
+  // https://developer.chrome.com/origintrials/#/register_trial/4163014905550602241
+  const OT_TOKEN = "REPLACE_WITH_REAL_TOKEN"; // move to a config store / env for real use
+  if (OT_TOKEN && !OT_TOKEN.startsWith("REPLACE")) {
+    headers.append("Origin-Trial", OT_TOKEN);
+  }
 
   return new Response(transformedBody, {
     status: originResponse.status,
