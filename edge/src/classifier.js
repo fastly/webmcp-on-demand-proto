@@ -42,6 +42,11 @@ export function classifyForm(formAttrs, fields) {
   const { action, method, id, className, role, ariaLabel } = formAttrs;
   const methodUp = (method || "GET").toUpperCase();
 
+  // toolautosubmit removes the agent's user-confirmation step, so it is only
+  // safe for idempotent, read-only submissions. A POST form is never
+  // auto-submittable, no matter how search-like it looks.
+  const isIdempotent = methodUp === "GET";
+
   // Collect field-level signals
   const fieldTypes = new Set(fields.map((f) => lower(f.type)));
   const fieldNames = fields.map((f) => lower(f.name)).join(" ");
@@ -50,28 +55,8 @@ export function classifyForm(formAttrs, fields) {
   const hasTextarea = fields.some((f) => lower(f.tag) === "textarea");
   const hasDateInput = fieldTypes.has("date");
 
-  // ── Filter (check BEFORE search — filter forms may POST to a /search URL) ─
-  if (
-    includes(action, "filter") ||
-    includes(id, "filter") ||
-    includes(className, "filter") ||
-    includes(ariaLabel, "filter")
-  ) {
-    return { category: CATEGORIES.FILTER, autoSubmit: true };
-  }
-
-  // ── Search ─────────────────────────────────────────────────────────────
-  if (
-    role === "search" ||
-    includes(action, "search") ||
-    includes(id, "search") ||
-    includes(className, "search") ||
-    includes(ariaLabel, "search")
-  ) {
-    return { category: CATEGORIES.SEARCH, autoSubmit: true };
-  }
-
-  // ── Login ──────────────────────────────────────────────────────────────
+  // ── Login (checked first — a sensitive-category match must win over a
+  //    cosmetic substring match like class="search-box login") ────────────
   if (hasPassword && (hasEmail || fieldNames.includes("user"))) {
     return { category: CATEGORIES.LOGIN, autoSubmit: false };
   }
@@ -84,7 +69,7 @@ export function classifyForm(formAttrs, fields) {
     return { category: CATEGORIES.LOGIN, autoSubmit: false };
   }
 
-  // ── Booking / Checkout ─────────────────────────────────────────────────
+  // ── Booking / Checkout (also before search/filter, same reasoning) ─────
   if (
     includes(action, "book", "checkout", "confirm", "order", "pay") ||
     includes(id, "book", "checkout", "order") ||
@@ -95,6 +80,27 @@ export function classifyForm(formAttrs, fields) {
     fieldNames.includes("card_exp")
   ) {
     return { category: CATEGORIES.BOOKING, autoSubmit: false };
+  }
+
+  // ── Filter (check BEFORE search — filter forms may POST to a /search URL) ─
+  if (
+    includes(action, "filter") ||
+    includes(id, "filter") ||
+    includes(className, "filter") ||
+    includes(ariaLabel, "filter")
+  ) {
+    return { category: CATEGORIES.FILTER, autoSubmit: isIdempotent };
+  }
+
+  // ── Search ─────────────────────────────────────────────────────────────
+  if (
+    role === "search" ||
+    includes(action, "search") ||
+    includes(id, "search") ||
+    includes(className, "search") ||
+    includes(ariaLabel, "search")
+  ) {
+    return { category: CATEGORIES.SEARCH, autoSubmit: isIdempotent };
   }
 
   // ── Contact / Support ──────────────────────────────────────────────────

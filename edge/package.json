@@ -11,5 +11,9 @@
   },
   "devDependencies": {
     "@fastly/js-compute": "^3.35.0"
-  }
+  },
+  "overrides": {
+    "picomatch": "^4.0.4"
+  },
+  "license": "MIT"
 }

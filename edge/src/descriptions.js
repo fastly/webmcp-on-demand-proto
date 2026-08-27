@@ -39,14 +39,18 @@ export function generateToolDescription(category, formAttrs, fields) {
 
   let base = FORM_DESCRIPTIONS[category] || FORM_DESCRIPTIONS[CATEGORIES.GENERIC];
 
-  // If the form has an aria-label, use it to enrich the description
-  if (ariaLabel) {
-    base = `${capitalise(ariaLabel)}. ${base}`;
+  // Origin-derived values are untrusted input to an LLM. The service-authored
+  // sentence stays first so it frames the origin text, and the origin text is
+  // rendered as quoted data rather than narrative the agent might obey.
+  const safeLabel = sanitizeOriginText(ariaLabel);
+  if (safeLabel) {
+    base += ` The form is labeled "${safeLabel}".`;
   }
 
   // Add context about what action the form targets
-  if (action && action !== "#") {
-    base += ` (submits to ${action})`;
+  const safeAction = sanitizeOriginText(action);
+  if (safeAction && safeAction !== "#") {
+    base += ` (submits to "${safeAction}")`;
   }
 
   return base;
@@ -64,8 +68,11 @@ export function generateToolDescription(category, formAttrs, fields) {
 export function generateParamDescription(field) {
   const parts = [];
 
-  // 1. Start with the label text or aria-label (most descriptive source)
-  const humanName = field.labelText || field.ariaLabel || humanise(field.name);
+  // 1. Start with the label text or aria-label (most descriptive source).
+  //    All of these originate in origin HTML, so they get sanitized.
+  const humanName = sanitizeOriginText(
+    field.labelText || field.ariaLabel || humanise(field.name)
+  );
   if (humanName) {
     parts.push(humanName);
   }
@@ -75,14 +82,15 @@ export function generateParamDescription(field) {
   if (typeHints) parts.push(typeHints);
 
   // 3. Placeholder as example
-  if (field.placeholder) {
-    parts.push(`e.g. "${field.placeholder}"`);
+  const safePlaceholder = sanitizeOriginText(field.placeholder);
+  if (safePlaceholder) {
+    parts.push(`e.g. "${safePlaceholder}"`);
   }
 
   // 4. Constraints
   const constraints = [];
   if (field.required) constraints.push("required");
-  if (field.pattern) constraints.push(`must match pattern ${field.pattern}`);
+  if (field.pattern) constraints.push(`must match pattern "${sanitizeOriginText(field.pattern)}"`);
   if (field.min !== null && field.min !== undefined) constraints.push(`min: ${field.min}`);
   if (field.max !== null && field.max !== undefined) constraints.push(`max: ${field.max}`);
   if (field.maxlength) constraints.push(`max length: ${field.maxlength}`);
@@ -92,18 +100,38 @@ export function generateParamDescription(field) {
 
   // 5. Select options
   if (field.options && field.options.length > 0) {
-    const optStr = field.options.map((o) => `"${o}"`).join(", ");
+    const optStr = field.options.map((o) => `"${sanitizeOriginText(o)}"`).join(", ");
     parts.push(`Options: [${optStr}]`);
   }
 
-  return parts.join(". ").replace(/\.\./g, ".").trim() || humanName || field.name || "Form field";
+  return (
+    parts.join(". ").replace(/\.\./g, ".").trim() ||
+    humanName ||
+    sanitizeOriginText(field.name) ||
+    "Form field"
+  );
 }
 
 // ─── Utilities ───────────────────────────────────────────────────────────────
 
-function capitalise(str) {
-  if (!str) return "";
-  return str.charAt(0).toUpperCase() + str.slice(1);
+// Longest origin-derived fragment we'll embed in a description. Long enough
+// for a legitimate label or placeholder, short enough to starve a multi-step
+// injected directive of room.
+const MAX_ORIGIN_TEXT_LEN = 120;
+
+/**
+ * Origin HTML attributes end up inside tooldescription/toolparamdescription —
+ * text an AI agent reads as instructions. On any page with user-generated
+ * content those attributes are attacker-reachable, so treat them as untrusted
+ * LLM input: strip control characters, collapse whitespace, and cap length.
+ */
+export function sanitizeOriginText(raw) {
+  if (!raw) return "";
+  return String(raw)
+    .replace(/[\u0000-\u001F\u007F-\u009F\u2028\u2029]/g, " ")
+    .replace(/\s+/g, " ")
+    .slice(0, MAX_ORIGIN_TEXT_LEN)
+    .trim();
 }
 
 function humanise(str) {

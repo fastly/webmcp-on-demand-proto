@@ -15,6 +15,13 @@ import {
 } from "./descriptions.js";
 import { generateBadgeHTML } from "./badge.js";
 
+// ─── Sensitive-field exclusions ──────────────────────────────────────────────
+// Fields an agent must never be told to fill: credentials, payment data,
+// government IDs, and one-time codes.
+const SENSITIVE_TYPES = new Set(["password", "file"]);
+const SENSITIVE_NAME = /pass|pwd|card|cvv|cvc|csc|ssn|secret|token|otp|pin|routing|iban/i;
+const SENSITIVE_AUTOCOMPLETE = /^(cc-|new-password|current-password|one-time-code)/i;
+
 // ─── Main handler ────────────────────────────────────────────────────────────
 
 addEventListener("fetch", (event) => event.respondWith(handleRequest(event)));
@@ -25,9 +32,18 @@ async function handleRequest(event) {
   // Fetch the origin response
   const originResponse = await fetch(request, { backend: "origin" });
 
-  // Only rewrite HTML responses
+  // Only rewrite HTML responses. Parse the media type rather than
+  // substring-matching the whole header value.
   const contentType = originResponse.headers.get("content-type") || "";
-  if (!contentType.includes("text/html")) {
+  const mediaType = contentType.split(";")[0].trim().toLowerCase();
+  if (mediaType !== "text/html") {
+    return originResponse;
+  }
+
+  // If the origin opts out of origin isolation, Chrome disables the WebMCP
+  // API on the page — injected attributes would be inert, so pass through.
+  const oac = (originResponse.headers.get("origin-agent-cluster") || "").trim();
+  if (oac === "?0") {
     return originResponse;
   }
 
@@ -90,12 +106,20 @@ async function handleRequest(event) {
     const max = el.getAttribute("max");
     const maxlength = el.getAttribute("maxlength") || "";
     const disabled = el.getAttribute("disabled") !== null;
+    const autocomplete = el.getAttribute("autocomplete") || "";
 
     // Skip hidden inputs and disabled fields — they're not agent-interactive
     if (type === "hidden" || disabled) return;
 
     // Skip submit buttons
     if (type === "submit") return;
+
+    // Never describe credential or payment fields as agent-fillable
+    // parameters — annotating them invites an agent to populate them.
+    // Fails closed on type, name/id vocabulary, and autocomplete tokens.
+    if (SENSITIVE_TYPES.has(type)) return;
+    if (SENSITIVE_NAME.test(name) || SENSITIVE_NAME.test(id)) return;
+    if (SENSITIVE_AUTOCOMPLETE.test(autocomplete)) return;
 
     // Build field metadata for the description generator
     const field = {
@@ -124,10 +148,15 @@ async function handleRequest(event) {
   }
 
   // ── Inject badge before </body> ──────────────────────────────────────
-
-  rewriter.onElement("body", (el) => {
-    el.append(generateBadgeHTML());
-  });
+  // The badge uses inline <style>/<script>, which a strict origin CSP will
+  // block. Skip it rather than weakening the origin's policy; the form
+  // attribute injection above is unaffected either way.
+  const hasCSP = originResponse.headers.get("content-security-policy") !== null;
+  if (!hasCSP) {
+    rewriter.onElement("body", (el) => {
+      el.append(generateBadgeHTML());
+    });
+  }
 
   // ── Pipe and respond ─────────────────────────────────────────────────
 
@@ -142,7 +171,9 @@ async function handleRequest(event) {
   // https://developer.chrome.com/origintrials/#/register_trial/4163014905550602241
   const OT_TOKEN = "REPLACE_WITH_REAL_TOKEN"; // move to a config store / env for real use
   if (OT_TOKEN && !OT_TOKEN.startsWith("REPLACE")) {
-    headers.append("Origin-Trial", OT_TOKEN);
+    // set, not append — an origin-supplied Origin-Trial header would
+    // otherwise produce ambiguous duplicate tokens
+    headers.set("Origin-Trial", OT_TOKEN);
   }
 
   return new Response(transformedBody, {
