@@ -99,25 +99,6 @@ export function generateParamDescription(field) {
   return parts.join(". ").replace(/\.\./g, ".").trim() || humanName || field.name || "Form field";
 }
 
-/**
- * Decide whether toolparamtitle should be set.
- * Only set it if the field's `name` is cryptic.
- *
- * @param {string} name – the field's name attribute
- * @returns {string|null} – a clean title, or null if name is already fine
- */
-export function maybeParamTitle(name) {
-  if (!name) return null;
-
-  // Names ≤ 2 chars, or containing only non-alpha chars are cryptic
-  const isCryptic = name.length <= 2 || /^[^a-zA-Z]*$/.test(name) || /^fld_|^f_|^q$/i.test(name);
-
-  if (!isCryptic) return null;
-
-  // Try to produce a better title — this is best-effort
-  return humanise(name).toLowerCase().replace(/\s+/g, "_");
-}
-
 // ─── Utilities ───────────────────────────────────────────────────────────────
 
 function capitalise(str) {
