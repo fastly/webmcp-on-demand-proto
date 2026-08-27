@@ -94,7 +94,7 @@ The form classifier uses two layers:
 
 **Layer 1 — Form-level classification** examines:
 - `action` attribute (`/search`, `/book`, `/contact`, etc.)
-- `method` attribute (GET → search/filter, POST → submission)
+- `method` attribute (only GET forms are eligible for `toolautosubmit`; POST forms always require agent confirmation)
 - `id`, `class`, `role`, `aria-label` attributes
 - Known patterns (search, login, booking, contact, newsletter)
 
